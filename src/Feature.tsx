@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  MeshButton,
+  MeshLaunch,
   MeshNameInput,
+  MeshPresence,
+  MeshStatusPill,
+  MeshSurface,
   createClockSync,
   useNamedPeer,
   useReactions,
@@ -69,6 +74,12 @@ export function Feature({ room, config }: Props) {
 
   const currentName = displayPeer(turn.currentPeerId, namedPeer.nameOf);
   const nextName = displayPeer(turn.nextPeerId, namedPeer.nameOf);
+  const playerCount = Math.max(1, roster.present.length);
+  const currentTurnLabel = turn.isMyTurn
+    ? "Your turn"
+    : turn.currentPeerId
+      ? `${currentName}'s turn`
+      : "Waiting for players";
   const isAnswered = answer?.peerId === room?.peerId;
   const progress = Math.round(turn.progress * 100);
   const cheers = reactions.countsFor(roundId).fire ?? 0;
@@ -92,36 +103,94 @@ export function Feature({ room, config }: Props) {
     tone.play({ freq: 740, glideTo: 980, type: "sine", duration: 0.12 });
   };
 
+  const focusName = () => {
+    document.getElementById("identity-title")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    document.querySelector<HTMLInputElement>(".mesh-name-input-field")?.focus();
+  };
+
+  const launchAction = turn.isMyTurn
+    ? {
+        label: isAnswered
+          ? "Answer locked in"
+          : answer
+            ? "This turn is locked"
+            : "I said all three",
+        onClick: markAnswered,
+        disabled: !room || !!answer,
+      }
+    : {
+        label: room ? "Cheer this turn" : "Preparing the round",
+        onClick: cheer,
+        disabled: !room,
+      };
+
   return (
     <main className="rule-page">
-      <section className="rule-hero" aria-labelledby="rule-title">
-        <p className="rule-kicker">A tiny room game</p>
-        <h1 id="rule-title">
-          Five seconds.
-          <br />
-          Say three things.
-        </h1>
-        <p className="rule-intro">
-          A fast, friendly prompt game that rotates fairly between everyone in this room. No host,
-          accounts, or scorekeeping drama.
-        </p>
-        <p className="rule-presence" aria-live="polite">
-          <span className={room ? "presence-dot is-live" : "presence-dot"} aria-hidden="true" />
-          {room
-            ? `${Math.max(1, roster.present.length)} player${roster.present.length === 1 ? "" : "s"} in this room`
-            : "Joining room…"}
-        </p>
-      </section>
+      <MeshLaunch
+        className="rule-launch"
+        eyebrow="A five-second room game"
+        heading={
+          <>
+            Five seconds.
+            <br />
+            Say three things.
+          </>
+        }
+        promise="A fast, generous prompt game that rotates fairly between everyone here. No host, accounts, or scorekeeping drama."
+        presence={
+          <MeshPresence
+            count={playerCount}
+            state={room ? "connected" : "connecting"}
+            label={playerCount === 1 ? "player in this room" : "players in this room"}
+            announce="polite"
+          />
+        }
+        preview={
+          <div className="launch-round-preview" aria-label="Live round preview">
+            <div className="launch-round-preview-meta">
+              <MeshStatusPill tone={turn.isMyTurn ? "live" : "info"} dot>
+                {currentTurnLabel}
+              </MeshStatusPill>
+              <span>{Math.max(0, Math.ceil(turn.msToNextTurn / 1000))} sec</span>
+            </div>
+            <strong>{promptForSlot(turn.slotId)}</strong>
+            <div className="launch-round-preview-track" aria-hidden="true">
+              <span style={{ transform: `scaleX(${1 - turn.progress})` }} />
+            </div>
+          </div>
+        }
+        primaryAction={launchAction}
+        secondaryAction={{ label: "Set my name", onClick: focusName }}
+        loading={!room}
+        connectionHint={
+          room
+            ? undefined
+            : "Joining the room now. The live prompt stays visible while it connects."
+        }
+      />
 
       <section className="game-grid" aria-label="Five second game">
-        <section className="round-card" aria-live="polite">
+        <MeshSurface
+          as="section"
+          className="round-card"
+          tone="accent"
+          padding="lg"
+          id="five-second-round"
+          tabIndex={-1}
+          aria-live="polite"
+        >
           <div className="round-meta">
-            <span>Round {Math.max(1, turn.slotId)}</span>
-            <span>
+            <MeshStatusPill tone="neutral" dot>
+              Round {Math.max(1, turn.slotId)}
+            </MeshStatusPill>
+            <MeshStatusPill tone={turn.msToNextTurn > 0 ? "warning" : "info"}>
               {turn.msToNextTurn > 0
                 ? `${Math.ceil(turn.msToNextTurn / 1000)} seconds`
                 : "Switching"}
-            </span>
+            </MeshStatusPill>
           </div>
           <div
             className="timer-track"
@@ -129,18 +198,19 @@ export function Feature({ room, config }: Props) {
           >
             <span className="timer-fill" style={{ transform: `scaleX(${1 - turn.progress})` }} />
           </div>
-          <p className="turn-label">{turn.isMyTurn ? "Your turn" : `${currentName}'s turn`}</p>
+          <p className="turn-label">{currentTurnLabel}</p>
           <h2>{promptForSlot(turn.slotId)}</h2>
           <p className="round-instruction">
             {turn.isMyTurn
               ? "Go! Say three answers out loud before the sand runs out."
-              : `Listen in, then give ${currentName} a little fire.`}
+              : `Listen in, then give ${currentName} a little encouragement.`}
           </p>
 
           {turn.isMyTurn ? (
-            <button
+            <MeshButton
               className="answer-button"
-              type="button"
+              variant="primary"
+              size="lg"
               onClick={markAnswered}
               disabled={!room || !!answer}
             >
@@ -149,23 +219,30 @@ export function Feature({ room, config }: Props) {
                 : answer
                   ? "Answer locked in"
                   : "I said all three!"}
-            </button>
+            </MeshButton>
           ) : (
-            <button
+            <MeshButton
               className="cheer-button"
-              type="button"
               onClick={cheer}
+              variant="secondary"
+              size="lg"
               disabled={!room}
               aria-pressed={reactions.myReactionsOn(roundId).has("fire")}
             >
-              {reactions.myReactionsOn(roundId).has("fire") ? "🔥 Cheered" : "🔥 Cheer them on"}
-              {cheers > 0 && <span>{cheers}</span>}
-            </button>
+              {reactions.myReactionsOn(roundId).has("fire") ? "You cheered" : "Cheer them on"}
+              {cheers > 0 ? ` · ${cheers} cheer${cheers === 1 ? "" : "s"}` : ""}
+            </MeshButton>
           )}
-        </section>
+        </MeshSurface>
 
         <aside className="side-stack">
-          <section className="identity-card" aria-labelledby="identity-title">
+          <MeshSurface
+            as="section"
+            className="identity-card"
+            tone="raised"
+            padding="md"
+            aria-labelledby="identity-title"
+          >
             <p className="card-label">You are playing as</p>
             <h2 id="identity-title">{namedPeer.name || "Unnamed player"}</h2>
             <MeshNameInput
@@ -176,9 +253,15 @@ export function Feature({ room, config }: Props) {
               maxLength={32}
               showCounter
             />
-          </section>
+          </MeshSurface>
 
-          <section className="rotation-card" aria-labelledby="rotation-title">
+          <MeshSurface
+            as="section"
+            className="rotation-card"
+            tone="quiet"
+            padding="md"
+            aria-labelledby="rotation-title"
+          >
             <p className="card-label">Next up</p>
             <h2 id="rotation-title">{nextName}</h2>
             <ol className="player-list">
@@ -189,7 +272,7 @@ export function Feature({ room, config }: Props) {
                 </li>
               ))}
             </ol>
-          </section>
+          </MeshSurface>
         </aside>
       </section>
 
