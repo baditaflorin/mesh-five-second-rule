@@ -32,3 +32,17 @@ test("mobile entry keeps the real round and an immediate action in view", async 
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
 });
+
+test("short desktop keeps the first play action above the fold", async ({ page }) => {
+  await page.setViewportSize({ width: 1141, height: 602 });
+  await page.goto("./", { waitUntil: "domcontentloaded" });
+
+  const primaryAction = page
+    .getByRole("group", { name: "Launch actions" })
+    .getByRole("button")
+    .first();
+  await expect(primaryAction).toBeVisible();
+  const box = await primaryAction.boundingBox();
+  expect(box).not.toBeNull();
+  expect((box?.y ?? Number.POSITIVE_INFINITY) + (box?.height ?? 0)).toBeLessThanOrEqual(602);
+});
