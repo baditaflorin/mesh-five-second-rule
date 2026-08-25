@@ -18,3 +18,17 @@ test("room peers derive the same live prompt", async ({ browser, baseURL }) => {
     await cleanup();
   }
 });
+
+test("mobile entry keeps the real round and an immediate action in view", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./", { waitUntil: "domcontentloaded" });
+
+  await expect(page.locator(".rule-launch")).toBeVisible();
+  await expect(page.locator(".launch-round-preview")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Launch actions" }).getByRole("button").first(),
+  ).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+});

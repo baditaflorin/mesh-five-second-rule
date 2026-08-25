@@ -15,10 +15,14 @@ describe("Five Second Rule", () => {
     render(<Feature room={createMockRoom()} config={config} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Five seconds");
     expect(screen.getByPlaceholderText("Add a name for this room")).toBeInTheDocument();
+    expect(document.querySelector(".rule-launch")).toBeInTheDocument();
+    expect(document.querySelector(".round-card.mesh-surface")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Launch actions" })).toBeInTheDocument();
   });
 
   it("keeps a useful joining state before the room exists", () => {
     render(<Feature room={null} config={config} />);
-    expect(screen.getByText("Joining room…")).toBeInTheDocument();
+    expect(screen.getByText(/joining the room now/i)).toBeInTheDocument();
+    expect(screen.getByText(/live prompt stays visible/i)).toBeInTheDocument();
   });
 });
