@@ -2,6 +2,10 @@ steps:
   verify:
     image: node:22-alpine
     commands:
+      - apk add --no-cache bash git
+      - git clone --depth 1 --filter=blob:none --sparse https://github.com/baditaflorin/mesh-common.git ../mesh-common
+      - git -C ../mesh-common sparse-checkout set src testing scripts package
+      - npm ci --prefix ../mesh-common
       - npm ci
       - npm run fmt:check
       - npm run typecheck
