@@ -2,6 +2,7 @@ import { createMeshConfig } from "@baditaflorin/mesh-common";
 
 export const config = createMeshConfig({
   appName: "mesh-five-second-rule",
+  breadcrumbs: false,
   displayName: "Five Second Rule",
   visualProfile: "play",
   shellLayout: "inset",
